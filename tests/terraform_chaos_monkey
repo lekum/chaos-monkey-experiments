@@ -5,16 +5,17 @@ import shlex
 import random
 import time
 
+# Params
 minutes_between_executions = 1
 minutes_between_destroy_and_apply = 1
-terraform_path = os.path.realpath("../infra/")
-selector_string = "5000"
+terraform_path = os.path.realpath("../../infra/")
+selector_string = "80"
 
-terraform_bin = os.path.join(terraform_path, "terraform")
 env = {
         "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID"),
         "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY"),
-        "AWS_REGION": os.getenv("AWS_REGION")
+        "AWS_REGION": os.getenv("AWS_REGION"),
+        "PATH": os.getenv("PATH")
       }
 
 
@@ -22,10 +23,7 @@ def terraform(subcommand):
     """
     Executes "terraform subcommand" and returns the decoded output
     """
-    command = [terraform_bin]
-    args = shlex.split(subcommand)
-    command.extend(args)
-    res = subprocess.run(command, cwd=terraform_path, stdout=subprocess.PIPE, env=env)
+    res = subprocess.run("terraform {}".format(subcommand), shell=True, cwd=terraform_path, stdout=subprocess.PIPE, env=env)
     return res.stdout.decode()
 
 def execute_chaos():
@@ -41,8 +39,9 @@ def execute_chaos():
         print("Destroying {}:...".format(resource))
         terraform("destroy -force -target={}".format(resource))
         print("Destruction done. Waiting {} minute(s) before recreating...".format(minutes_between_destroy_and_apply))
-        time.sleep(minutes_between_executions * 60)
+        time.sleep(minutes_between_destroy_and_apply * 60)
         terraform("apply -target={}".format(resource))
+        print("{} recreated.".format(resource))
     else:
         print("Selector {} not found in resource {}, skipping".format(selector_string, resource))
 
